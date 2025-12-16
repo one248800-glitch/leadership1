@@ -5,13 +5,30 @@ import {
 } from 'recharts';
 import { CheckCircle2, ChevronRight, RotateCcw, Award, Users, Brain, Target, BarChart2, Heart, Sun, BookOpen, Quote, X, Info, MousePointerClick } from 'lucide-react';
 
+// --- 커스텀 애니메이션 스타일 정의 ---
+const customStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+  @keyframes pulseSlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .animate-pulse-slow {
+    animation: pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+`;
+
 // --- 데이터 정의 (설문 문항 및 진단 내용) ---
 
 const SURVEY_DATA = [
   {
     id: 'consciousness',
     title: '1. 교사리더십 의식',
-    // 요청사항 반영: 영역별 상세 해석의 설명을 이곳(설문 단계 설명)에도 동일하게 적용
     description: '교육의 주체는 교사라는 확고한 주인의식과 책임감을 바탕으로, 자율권을 재량껏 발휘하려는 내면적 의지를 나타냅니다.',
     icon: Brain,
     analysis: "교육의 주체는 교사라는 확고한 주인의식과 책임감을 바탕으로, 자율권을 재량껏 발휘하려는 내면적 의지를 나타냅니다.",
@@ -52,7 +69,6 @@ const SURVEY_DATA = [
   {
     id: 'competency',
     title: '2. 교사리더십 역량',
-    // 요청사항 반영: 영역별 상세 해석의 설명으로 교체
     description: '교육활동 대상(학생, 동료, 학부모)을 깊이 이해하고 원활하게 소통하며, 지속적인 성찰과 철학적 사고를 통해 타인의 성장을 촉진하는 능력입니다.',
     icon: Users,
     analysis: "교육활동 대상(학생, 동료, 학부모)을 깊이 이해하고 원활하게 소통하며, 지속적인 성찰과 철학적 사고를 통해 타인의 성장을 촉진하는 능력입니다.",
@@ -126,7 +142,6 @@ const SURVEY_DATA = [
   {
     id: 'attributes',
     title: '3. 교사리더십 발휘 속성',
-    // 요청사항 반영: 영역별 상세 해석의 설명으로 교체
     description: '교육 목표를 명확히 인지하고 능동적으로 과업을 주도하며, 교육 공동체 구성원들과 협력하여 전문적으로 과업을 수행해 나가는 실천적 행동입니다.',
     icon: Target,
     analysis: "교육 목표를 명확히 인지하고 능동적으로 과업을 주도하며, 교육 공동체 구성원들과 협력하여 전문적으로 과업을 수행해 나가는 실천적 행동입니다.",
@@ -203,7 +218,7 @@ const App = () => {
   const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [currentPage, setCurrentPage] = useState(0); // 0: Intro, 1: Page 1, 2: Page 2, 3: Result
-  const [activeModal, setActiveModal] = useState(null); // 모달 상태 추가
+  const [activeModal, setActiveModal] = useState(null); // 모달 상태
 
   const answeredCount = Object.keys(answers).length;
   const totalCount = ALL_QUESTIONS.length;
@@ -417,7 +432,7 @@ const App = () => {
                 <div key={data.id} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col">
                   <h3 className="text-lg font-bold text-stone-800 mb-2 flex items-center">
                     <data.icon className={`w-5 h-5 mr-2`} style={{ color: data.color }} />
-                    '{data.title.split('. ')[1]}' 상세 분석
+                    {data.title.split('. ')[1]} 상세 분석
                   </h3>
                   <p className="text-sm text-stone-500 mb-6 min-h-[40px]">{data.description}</p>
                   <div className="h-60 w-full">
@@ -585,6 +600,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-[#fcfaf8] text-stone-800 font-sans selection:bg-orange-200">
+      <style>{customStyles}</style>
       <div className="max-w-4xl mx-auto px-4 py-8">
         
         {/* Header (Progress) */}
@@ -626,9 +642,9 @@ const App = () => {
                 <button 
                   onClick={handleNext}
                   className={`px-10 py-3 rounded-2xl text-white font-bold shadow-lg flex items-center space-x-2 transition-all transform active:scale-95
-                    ${isSectionComplete(currentPage) 
-                        ? 'bg-orange-500 hover:bg-orange-600 hover:shadow-orange-300' 
-                        : 'bg-stone-300 cursor-not-allowed shadow-none'}`}
+                   ${isSectionComplete(currentPage) 
+                      ? 'bg-orange-500 hover:bg-orange-600 hover:shadow-orange-300' 
+                      : 'bg-stone-300 cursor-not-allowed shadow-none'}`}
                   disabled={!isSectionComplete(currentPage)}
                 >
                   <span>{currentPage === 2 ? '결과 보기' : '다음 단계'}</span>
@@ -644,4 +660,3 @@ const App = () => {
 };
 
 export default App;
-
