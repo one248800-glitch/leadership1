@@ -1,662 +1,678 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell 
-} from 'recharts';
-import { CheckCircle2, ChevronRight, RotateCcw, Award, Users, Brain, Target, BarChart2, Heart, Sun, BookOpen, Quote, X, Info, MousePointerClick } from 'lucide-react';
-
-// --- 커스텀 애니메이션 스타일 정의 ---
-const customStyles = `
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .animate-fade-in {
-    animation: fadeIn 0.6s ease-out forwards;
-  }
-  @keyframes pulseSlow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-  }
-  .animate-pulse-slow {
-    animation: pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-`;
-
-// --- 데이터 정의 (설문 문항 및 진단 내용) ---
-
-const SURVEY_DATA = [
-  {
-    id: 'consciousness',
-    title: '1. 교사리더십 의식',
-    description: '교육의 주체는 교사라는 확고한 주인의식과 책임감을 바탕으로, 자율권을 재량껏 발휘하려는 내면적 의지를 나타냅니다.',
-    icon: Brain,
-    analysis: "교육의 주체는 교사라는 확고한 주인의식과 책임감을 바탕으로, 자율권을 재량껏 발휘하려는 내면적 의지를 나타냅니다.",
-    color: "#f43f5e", // Rose
-    subCategories: [
-      {
-        id: 'subjectivity',
-        title: '주체의식',
-        detail: "교육의 주체는 교사라는 의식과 주도적으로 그 역할을 감당하겠다는 의지가 있는가",
-        questions: [
-          "나는 학교 교육활동에 있어 교사가 주체라고 생각한다.",
-          "나는 학교공동체의 변화와 발전을 위해 주체적이고 적극적으로 참여해야 한다고 생각한다."
-        ]
-      },
-      {
-        id: 'responsibility',
-        title: '책임의식',
-        detail: "교육을 책임지겠다는 의식과 맡은 학생을 책임지겠다는 의지가 있는가",
-        questions: [
-          "나는 교육활동에 대해 책임져야 한다고 생각한다.",
-          "나는 학교를 더 나은 공동체로 만들기 위한 책임이 있다고 생각한다.",
-          "나는 국가 교육 담당자로서의 책임이 있다고 생각한다."
-        ]
-      },
-      {
-        id: 'autonomy',
-        title: '자율의식',
-        detail: "전문적 과업수행을 위해 부여된 자율권을 재량껏 발휘하는가",
-        questions: [
-          "나는 교육과정 운영의 자율성이 있다고 생각한다.",
-          "나는 주변 상황과 맥락을 고려하여 재량껏 학생을 지도하는 사람이라고 생각한다.",
-          "나는 자발적으로 더 효과적인 교육방법을 탐색해야 한다고 생각한다.",
-          "나는 교육활동 운영 과정 중에 타인의 의사를 존중하고 수용하면서, 스스로 판단해야 한다고 생각한다."
-        ]
-      }
-    ]
-  },
-  {
-    id: 'competency',
-    title: '2. 교사리더십 역량',
-    description: '교육활동 대상(학생, 동료, 학부모)을 깊이 이해하고 원활하게 소통하며, 지속적인 성찰과 철학적 사고를 통해 타인의 성장을 촉진하는 능력입니다.',
-    icon: Users,
-    analysis: "교육활동 대상(학생, 동료, 학부모)을 깊이 이해하고 원활하게 소통하며, 지속적인 성찰과 철학적 사고를 통해 타인의 성장을 촉진하는 능력입니다.",
-    color: "#f59e0b", // Amber
-    subCategories: [
-      {
-        id: 'understanding',
-        title: '이해역량',
-        detail: "교육활동을 함께하는 모든 대상에 대해 이해할 수 있는 역량을 갖추고 있는가",
-        questions: [
-          "나는 학생이 처한 상황, 가정배경 등 외적상태를 이해하고 있다.",
-          "나는 우리 반 학생들 사이의 관계가 어떤지 알고 있다.",
-          "나는 동료교사의 욕구와 동기에 대해 이해하고 있다.",
-          "나는 학부모의 생각과 필요를 파악하고 있다.",
-          "나는 우리 학교가 가진 독특한 상황과 맥락을 이해하고 있다."
-        ]
-      },
-      {
-        id: 'communication',
-        title: '소통역량',
-        detail: "자신의 의견을 잘 전달하고, 상대방의 의견을 잘 파악하여 원활하게 상호작용하는가",
-        questions: [
-          "나는 수업지도 과정에서 학생들과 잘 소통한다.",
-          "나는 동료교사들과 교수활동과 관련된 피드백을 서로 주고 받는다.",
-          "나는 동료교사들과 수업지도나 학생지도에서 고충이나 문제가 생기면 자주 이야기한다.",
-          "나는 동료교사들과 함께 교육문제의 원인 및 해결책에 대해 자주 논의한다.",
-          "나는 교육 현안의 방향과 실천 목표에 대해 동료교사들과 함께 이야기한다."
-        ]
-      },
-      {
-        id: 'facilitation',
-        title: '촉진역량',
-        detail: "과업 수행 과정에서 상대방에게 동기를 부여하고 격려하며 자극해주는가",
-        questions: [
-          "나는 학생들의 학습욕구를 촉진시킬 수 있다.",
-          "나는 동료교사의 필요와 욕구를 파악하여 동료교사가 교육활동을 적극적으로 할 수 있게 도와줄 수 있다.",
-          "나는 학교사업 및 프로젝트 실행 시 동료교사가 적극적으로 참여하고 서로 협업할 수 있게 촉진할 수 있다.",
-          "나는 교내외의 활동에 교직원 참여를 장려하고 격려하여 신뢰감을 형성할 수 있다.",
-          "나는 동료교사의 능력개발을 위해 좋은 영향력을 미친다.",
-          "나는 적극적으로 다른 사람들에게 동기부여 한다.",
-          "나는 학부모들이 학교활동에 적극적으로 참여하도록 촉진할 수 있다."
-        ]
-      },
-      {
-        id: 'reflection',
-        title: '성찰역량',
-        detail: "자기 자신의 생각과 행동을 돌이켜 살피고 고찰해보는 역량을 갖추고 있는가",
-        questions: [
-          "나는 더 나은 수업을 위해 수업에서 발생한 문제를 계속해서 성찰한다.",
-          "나는 학생들이 겪는 어려움을 해결하기 위해 지속적으로 성찰하면서 지도한다.",
-          "나는 바람직한 교사의 삶에 대해 지속적으로 성찰하면서 교육활동을 수행한다.",
-          "나는 내가 틀렸거나 잘 모를 때 인정하고, 나를 발전시키기 위해 성찰하면서 방법을 찾아 나간다.",
-          "나는 학생과의 관계에서 겪는 문제나 갈등상황 해결을 위해 지속적으로 성찰하는 과정을 거친다."
-        ]
-      },
-      {
-        id: 'philosophy',
-        title: '철학역량',
-        detail: "교육에 대해 분명한 가치, 지향, 방향을 가지고 있는가",
-        questions: [
-          "나는 교사로서 교육의 목적을 탐구하며 교육활동을 수행한다.",
-          "나는 교사로서 소신과 사명감을 가지고 있다.",
-          "나는 학생들에게 긍정적인 영향을 줄 수 있는 교육철학을 가지고 있다.",
-          "나는 학생을 대할 때 나의 가치와 철학에 따라 행동한다.",
-          "나는 교사로서의 삶의 의미를 추구하며 적극적으로 살아간다.",
-          "나는 교사로서 나 자신에 대한 자아상을 가지고 있다."
-        ]
-      }
-    ]
-  },
-  {
-    id: 'attributes',
-    title: '3. 교사리더십 발휘 속성',
-    description: '교육 목표를 명확히 인지하고 능동적으로 과업을 주도하며, 교육 공동체 구성원들과 협력하여 전문적으로 과업을 수행해 나가는 실천적 행동입니다.',
-    icon: Target,
-    analysis: "교육 목표를 명확히 인지하고 능동적으로 과업을 주도하며, 교육 공동체 구성원들과 협력하여 전문적으로 과업을 수행해 나가는 실천적 행동입니다.",
-    color: "#f97316", // Orange
-    subCategories: [
-      {
-        id: 'goal_orientation',
-        title: '목표지향성',
-        detail: "학교 및 학급의 목표가 무엇인지 잘 인지하고 교육활동을 수행해 나가는가",
-        questions: [
-          "나는 교육활동의 명확한 비전과 목표를 세운다.",
-          "나는 목표가 뚜렷하지 않으면 교육활동을 수행하기 어렵다.",
-          "나는 교육목표 달성에 필요한 요소를 알고 있다.",
-          "나는 교육목표를 달성하지 못한다면 원인을 분석해 개선하려고 노력한다.",
-          "나는 힘들 때마다 목표를 떠올리며 이겨낸다.",
-          "나는 교육활동을 위해 목표가 반드시 필요하다고 생각한다."
-        ]
-      },
-      {
-        id: 'task_initiative',
-        title: '과업주도성',
-        detail: "능동적, 적극적으로 과업을 주도하여 수행해 나가는가",
-        questions: [
-          "나는 학교교육을 위해 주어진 역할을 주도적으로 담당한다.",
-          "나는 내가 맡은 업무를 솔선수범한다."
-        ]
-      },
-      {
-        id: 'community',
-        title: '공동체성',
-        detail: "학생, 동료교원, 학부모 등과 합력하여 여러 주체와 함께 과업을 수행해 나가는가",
-        questions: [
-          "나는 교육 문제를 동료교사와 함께 해결한다.",
-          "나는 문제가 생겼을 때 동료교사에게 도움을 구한다.",
-          "나는 어려움을 겪는 학생, 학부모, 동료를 기꺼이 돕는다.",
-          "나는 학교공동체에 적응하기 힘들어하는 동료가 잘 적응할 수 있도록 돕는다.",
-          "나는 기본적으로 교육주체들과 협력하여 교육활동을 수행하고자 한다.",
-          "나는 학생, 학부모, 동료와 함께 활동할 때 기쁨과 보람을 느낀다."
-        ]
-      },
-      {
-        id: 'professionalism',
-        title: '전문성',
-        detail: "전문적인 판단과 방법으로 과업을 수행하는가",
-        questions: [
-          "나는 수업에 관해 전문적인 지식과 실행 방법을 갖추고 있다.",
-          "나는 학생 특성에 맞는 생활지도 방법을 알고 지도한다.",
-          "나는 학생이 상담을 요청했을 때, 학생의 특성에 맞게 상담해줄 수 있다.",
-          "나는 학급을 운영할 때, 나만의 노하우로 운영할 수 있다."
-        ]
-      }
-    ]
-  }
-];
-
-// 페이지 구성을 2단계로 설정 (0, 1 인덱스는 첫 페이지, 2 인덱스는 두 번째 페이지)
-const PAGE_CONFIG = [
-  [0, 1], // Page 1: 의식, 역량
-  [2]     // Page 2: 발휘 속성
-];
-
-const ALL_QUESTIONS = SURVEY_DATA.flatMap(category => 
-  category.subCategories.flatMap(sub => 
-    sub.questions.map((q, idx) => ({
-      qText: q,
-      categoryId: category.id,
-      subId: sub.id,
-      key: `${category.id}-${sub.id}-${idx}`
-    }))
-  )
-);
-
-const App = () => {
-  const [answers, setAnswers] = useState({});
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0); // 0: Intro, 1: Page 1, 2: Page 2, 3: Result
-  const [activeModal, setActiveModal] = useState(null); // 모달 상태
-
-  const answeredCount = Object.keys(answers).length;
-  const totalCount = ALL_QUESTIONS.length;
-  const progress = Math.round((answeredCount / totalCount) * 100);
-
-  const handleAnswer = (key, value) => {
-    setAnswers(prev => ({ ...prev, [key]: value }));
-  };
-
-  const calculateResults = useMemo(() => {
-    if (!isSubmitted) return null;
-
-    const scores = {};
-    SURVEY_DATA.forEach(cat => {
-      scores[cat.id] = { sum: 0, count: 0, sub: {} };
-      cat.subCategories.forEach(sub => {
-        scores[cat.id].sub[sub.id] = { sum: 0, count: 0 };
-      });
-    });
-
-    ALL_QUESTIONS.forEach(q => {
-      const score = answers[q.key] || 0;
-      if (score === 0) return;
-
-      scores[q.categoryId].sum += score;
-      scores[q.categoryId].count += 1;
-
-      scores[q.categoryId].sub[q.subId].sum += score;
-      scores[q.categoryId].sub[q.subId].count += 1;
-    });
-
-    const result = { main: {}, subs: {} };
-    SURVEY_DATA.forEach(cat => {
-      result.main[cat.id] = scores[cat.id].count 
-        ? (scores[cat.id].sum / scores[cat.id].count).toFixed(2) 
-        : 0;
-      
-      result.subs[cat.id] = [];
-      cat.subCategories.forEach(sub => {
-        const subScore = scores[cat.id].sub[sub.id].count 
-          ? (scores[cat.id].sub[sub.id].sum / scores[cat.id].sub[sub.id].count).toFixed(2) 
-          : 0;
-        result.subs[cat.id].push({ name: sub.title, score: subScore, id: sub.id });
-      });
-    });
-
-    return result;
-  }, [answers, isSubmitted]);
-
-  const renderOption = (key, value) => (
-    <button
-      key={value}
-      onClick={() => handleAnswer(key, value)}
-      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 shadow-sm
-        ${answers[key] === value 
-          ? 'bg-orange-500 text-white ring-2 ring-offset-2 ring-orange-300 scale-110 shadow-orange-200' 
-          : 'bg-[#f5f5f4] text-stone-400 hover:bg-orange-100 hover:text-orange-600'}`}
-    >
-      {value}
-    </button>
-  );
-
-  const IntroPage = () => (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 animate-fade-in py-10">
-      <div className="bg-orange-100 p-8 rounded-full shadow-inner mb-4">
-        <Sun className="w-20 h-20 text-orange-500 animate-pulse-slow" />
-      </div>
-      <div className="space-y-4">
-        <h1 className="text-4xl font-extrabold text-stone-800 tracking-tight">교사 리더십 진단</h1>
-        <p className="text-stone-600 max-w-lg mx-auto leading-relaxed text-lg">
-          선생님의 따뜻한 영향력이 교실과 학교를 변화시킵니다.<br/>
-          잠시 시간을 내어 선생님의 리더십 여정을 돌아보세요.
-        </p>
-      </div>
-      
-      <div className="flex flex-col space-y-3 text-stone-500 text-sm">
-        <span className="bg-orange-50 px-4 py-1.5 rounded-full border border-orange-100 inline-block mx-auto font-medium text-orange-700">
-          총 55문항 • 약 5분 소요
-        </span>
-        <div className="text-xs text-stone-400 flex items-center justify-center space-x-1">
-          <BookOpen className="w-3 h-3" />
-          <span>문항 출처: 김병찬(2019). 교사리더십 진단도구 개발 연구.</span>
-        </div>
-      </div>
-
-      <button 
-        onClick={() => setCurrentPage(1)}
-        className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-orange-200 hover:bg-orange-600 hover:shadow-orange-300 transition-all transform hover:-translate-y-1 flex items-center space-x-2"
-      >
-        <span>시작하기</span>
-        <ChevronRight className="w-5 h-5" />
-      </button>
-    </div>
-  );
-
-  const SurveyPage = ({ pageIndex }) => {
-    const categoryIndices = PAGE_CONFIG[pageIndex - 1];
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>교사 리더십 진단</title>
     
-    return (
-      <div className="space-y-10 animate-fade-in pb-24">
-        {categoryIndices.map(catIdx => {
-          const data = SURVEY_DATA[catIdx];
-          return (
-            <div key={data.id} className="space-y-6">
-              {/* 섹션 헤더 */}
-              <div className="bg-[#fffbf7] p-8 rounded-3xl shadow-sm border border-orange-100/50 flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
-                <div className="p-4 bg-orange-100 rounded-2xl">
-                  <data.icon className="w-8 h-8 text-orange-600" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-stone-800">{data.title}</h2>
-                  <p className="text-stone-500 mt-1">{data.description}</p>
-                </div>
-              </div>
-
-              {/* 질문 리스트 */}
-              {data.subCategories.map((sub, subIdx) => (
-                <div key={sub.id} className="bg-white rounded-3xl shadow-sm border border-stone-100 overflow-hidden">
-                  <div className="divide-y divide-stone-100">
-                    {sub.questions.map((q, qIdx) => {
-                      const qKey = `${data.id}-${sub.id}-${qIdx}`;
-                      return (
-                        <div key={qKey} className="p-6 md:p-8 hover:bg-orange-50/50 transition-colors duration-300">
-                          <p className="text-stone-700 font-medium mb-6 leading-relaxed text-lg break-keep">{q}</p>
-                          <div className="flex flex-col sm:flex-row justify-end items-center space-y-3 sm:space-y-0 sm:space-x-6 bg-stone-50/50 sm:bg-transparent p-4 sm:p-0 rounded-xl">
-                            <span className="text-xs font-semibold text-stone-400">전혀 아니다</span>
-                            <div className="flex space-x-3 sm:space-x-4">
-                              {[1, 2, 3, 4, 5].map(val => renderOption(qKey, val))}
-                            </div>
-                            <span className="text-xs font-semibold text-stone-400">매우 그렇다</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const ResultPage = () => {
-    if (!calculateResults) return null;
-
-    const radarData = [
-      { subject: '리더십 의식', A: calculateResults.main.consciousness, fullMark: 5 },
-      { subject: '리더십 역량', A: calculateResults.main.competency, fullMark: 5 },
-      { subject: '발휘 속성', A: calculateResults.main.attributes, fullMark: 5 },
-    ];
-
-    const allSubScores = Object.values(calculateResults.subs).flat();
-    const maxScore = Math.max(...allSubScores.map(o => o.score));
-    const bestSub = allSubScores.reduce((prev, current) => (prev.score > current.score) ? prev : current);
-
-    return (
-      <div className="space-y-10 animate-fade-in pb-12">
-        <div className="text-center space-y-3 mb-10">
-          <div className="inline-block p-3 bg-orange-100 rounded-full mb-2">
-            <Heart className="w-8 h-8 text-orange-500 fill-orange-500" />
-          </div>
-          <h2 className="text-3xl font-bold text-stone-800">진단 결과 보고서</h2>
-          <p className="text-stone-500">선생님의 리더십이 꽃피우는 지점입니다.</p>
-        </div>
-
-        {/* 요약 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { label: '리더십 의식', val: calculateResults.main.consciousness, icon: Brain, color: 'text-rose-500', bg: 'bg-rose-50' },
-            { label: '리더십 역량', val: calculateResults.main.competency, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: '발휘 속성', val: calculateResults.main.attributes, icon: Target, color: 'text-orange-600', bg: 'bg-orange-50' },
-          ].map((item, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex items-center justify-between hover:shadow-md transition-shadow">
-              <div>
-                <p className="text-sm font-bold text-stone-400 mb-1">{item.label}</p>
-                <p className="text-4xl font-extrabold text-stone-800">{item.val}</p>
-              </div>
-              <div className={`p-4 rounded-2xl ${item.bg}`}>
-                <item.icon className={`w-8 h-8 ${item.color}`} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* 차트 영역 */}
-        <div className="space-y-8">
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100 flex flex-col items-center">
-            <h3 className="text-lg font-bold text-stone-800 mb-6 flex items-center">
-              <BarChart2 className="w-5 h-5 mr-2 text-orange-500" />
-              종합 리더십 균형
-            </h3>
-            <div className="h-80 w-full max-w-lg">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                  <PolarGrid stroke="#e7e5e4" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#78716c', fontSize: 14, fontWeight: '600' }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 5]} stroke="#d6d3d1" />
-                  <Radar name="My Score" dataKey="A" stroke="#f97316" fill="#fb923c" fillOpacity={0.5} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {SURVEY_DATA.map((data) => {
-               const chartData = calculateResults.subs[data.id];
-               return (
-                <div key={data.id} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col">
-                  <h3 className="text-lg font-bold text-stone-800 mb-2 flex items-center">
-                    <data.icon className={`w-5 h-5 mr-2`} style={{ color: data.color }} />
-                    {data.title.split('. ')[1]} 상세 분석
-                  </h3>
-                  <p className="text-sm text-stone-500 mb-6 min-h-[40px]">{data.description}</p>
-                  <div className="h-60 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e7e5e4" />
-                        <XAxis type="number" domain={[0, 5]} hide />
-                        <YAxis dataKey="name" type="category" tick={{ fill: '#57534e', fontSize: 13, fontWeight: '600' }} width={70} />
-                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Bar dataKey="score" radius={[0, 8, 8, 0]} barSize={24} fill={data.color} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-               );
-            })}
-          </div>
-        </div>
-
-        {/* 성장을 위한 제언 */}
-        <div className="bg-[#fff7ed] border border-orange-100 p-8 rounded-3xl shadow-sm mt-8">
-          <h3 className="text-xl font-bold text-stone-800 mb-4 flex items-center">
-            <Sun className="w-6 h-6 text-orange-500 mr-2" />
-            성장을 위한 제언
-          </h3>
-          <p className="leading-relaxed text-stone-700 opacity-90">
-            선생님은 <strong>
-              {calculateResults.main.consciousness >= 4 ? '단단한 교육철학을 바탕으로, ' : ''}
-              {calculateResults.main.competency >= 4 ? '교육공동체와 따뜻하게 소통하며, ' : ''}
-              {calculateResults.main.attributes >= 4 ? '목표를 향해 묵묵히 나아가는 ' : ''}
-            </strong> 
-            멋진 리더이십니다. 
-            <br/><br/>
-            특히 전체 하위 영역 중 
-            <strong className="text-orange-600"> {maxScore}점</strong>으로 가장 돋보이는 
-            <strong className="text-orange-600"> {bestSub.name}</strong>은 
-            선생님이 힘들 때 지탱해주는 든든한 뿌리가 되어줄 것입니다. 
-          </p>
-        </div>
-
-        {/* 해석 영역 */}
-        <div className="space-y-6 mt-8">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-xl font-bold text-stone-800 flex items-center">
-              <Quote className="w-5 h-5 mr-2 text-orange-500 fill-orange-500" />
-              영역별 상세 해석
-            </h3>
-            <span className="text-xs text-stone-400 flex items-center bg-white px-3 py-1 rounded-full border border-stone-100 animate-pulse">
-              <MousePointerClick className="w-3 h-3 mr-1" />
-              하위 요소를 클릭하여 상세 내용을 확인하세요
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {SURVEY_DATA.map((data, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col">
-                <div className="flex items-center mb-4">
-                  <div className="p-2 bg-stone-50 rounded-lg mr-3">
-                    <data.icon className="w-6 h-6 text-stone-600" />
-                  </div>
-                  <h4 className="font-bold text-lg text-stone-800">{data.title.substring(3)}</h4>
-                </div>
-                <p className="text-stone-600 text-sm leading-relaxed flex-grow">
-                  {data.analysis}
-                </p>
-                <div className="mt-4 pt-4 border-t border-stone-100">
-                  <span className="text-xs font-semibold text-stone-400 mb-2 block">하위 요소 (클릭하여 확인)</span>
-                  <div className="flex flex-wrap gap-2">
-                    {data.subCategories.map(sub => (
-                      <button 
-                        key={sub.id} 
-                        onClick={() => setActiveModal({ title: sub.title, content: sub.detail })}
-                        className="px-3 py-1.5 bg-stone-50 text-stone-600 text-xs rounded-lg hover:bg-orange-100 hover:text-orange-700 hover:font-bold transition-all border border-stone-100 hover:border-orange-200 active:bg-orange-200"
-                      >
-                        {sub.title}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <button 
-          onClick={() => {
-            setIsSubmitted(false);
-            setAnswers({});
-            setCurrentPage(0);
-            window.scrollTo(0,0);
-          }}
-          className="w-full py-5 bg-stone-200 text-stone-600 font-bold rounded-2xl hover:bg-stone-300 transition-colors flex items-center justify-center space-x-2 mt-8"
-        >
-          <RotateCcw className="w-5 h-5" />
-          <span>처음부터 다시 하기</span>
-        </button>
-
-        {/* 상세 설명 모달 */}
-        {activeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setActiveModal(null)}>
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl transform transition-all scale-100 border border-white/50" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-start mb-6">
-                <h3 className="text-2xl font-bold text-stone-800 flex items-center">
-                  <div className="w-3 h-3 bg-orange-500 rounded-full mr-3 animate-pulse"></div>
-                  {activeModal.title}
-                </h3>
-                <button onClick={() => setActiveModal(null)} className="p-2 bg-stone-100 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-200 transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100">
-                <h4 className="text-sm font-bold text-orange-600 mb-2">진단 내용</h4>
-                <p className="text-stone-700 leading-relaxed text-lg font-medium break-keep">
-                  {activeModal.content}
-                </p>
-              </div>
-              <div className="mt-8 flex justify-end">
-                <button 
-                  onClick={() => setActiveModal(null)}
-                  className="px-6 py-3 bg-stone-800 text-white rounded-xl hover:bg-stone-900 font-bold text-sm shadow-lg shadow-stone-200 transition-all hover:-translate-y-0.5"
-                >
-                  확인
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const isSectionComplete = (pageIdx) => {
-    if (pageIdx < 1 || pageIdx > 2) return true;
+    <!-- 1. Tailwind CSS (디자인) -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    const targetCategoryIndices = PAGE_CONFIG[pageIdx - 1];
+    <!-- 2. 리액트 및 필수 라이브러리 로드 (Babel을 통해 브라우저에서 직접 실행) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    const targetKeys = targetCategoryIndices.flatMap(catIdx => {
-       const catData = SURVEY_DATA[catIdx];
-       return catData.subCategories.flatMap(sub => 
-          sub.questions.map((_, qIdx) => `${catData.id}-${sub.id}-${qIdx}`)
-       );
-    });
-
-    return targetKeys.every(key => answers[key] > 0);
-  };
-
-  const handleNext = () => {
-    if (currentPage < 2) {
-        if (!isSectionComplete(currentPage)) {
-            alert("모든 문항에 응답해주세요.");
-            return;
+    <!-- 3. Import Map 설정 -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "react-dom": "https://esm.sh/react-dom@18.2.0",
+            "recharts": "https://esm.sh/recharts@2.12.2?external=react,react-dom",
+            "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react"
         }
-        setCurrentPage(p => p + 1);
-        window.scrollTo(0, 0);
-    } else {
-         if (!isSectionComplete(currentPage)) {
-            alert("모든 문항에 응답해주세요.");
-            return;
-        }
-        setIsSubmitted(true);
-        setCurrentPage(3);
-        window.scrollTo(0, 0);
     }
-  };
+    </script>
+    
+    <!-- 커스텀 스타일 -->
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        @keyframes pulseSlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse-slow {
+            animation: pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-[#fcfaf8]">
+    <div id="root"></div>
 
-  return (
-    <div className="min-h-screen bg-[#fcfaf8] text-stone-800 font-sans selection:bg-orange-200">
-      <style>{customStyles}</style>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        
-        {/* Header (Progress) */}
-        {currentPage > 0 && currentPage < 3 && (
-          <div className="mb-10 sticky top-4 z-20">
-            <div className="bg-white/80 backdrop-blur-lg px-8 py-5 rounded-full shadow-sm border border-stone-200/50 flex items-center justify-between">
-              <span className="font-bold text-orange-600 tracking-wide">Step {currentPage} / 2</span>
-              <div className="w-48 md:w-64 h-3 bg-stone-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-orange-400 to-rose-400 transition-all duration-700 ease-out rounded-full shadow-[0_0_10px_rgba(251,146,60,0.5)]"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-              <span className="text-sm text-stone-500 font-medium">{progress}% 완료</span>
+    <!-- 4. 리액트 코드 -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useMemo } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { 
+            Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
+            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+        } from 'recharts';
+        import { 
+            CheckCircle2, ChevronRight, RotateCcw, Award, Users, Brain, Target, 
+            BarChart2, Heart, Sun, BookOpen, Quote, X, MousePointerClick 
+        } from 'lucide-react';
+
+        // --- 데이터 정의 ---
+        const SURVEY_DATA = [
+            {
+                id: 'consciousness',
+                title: '1. 교사리더십 의식',
+                description: '교육의 주체는 교사라는 확고한 주인의식과 책임감을 바탕으로, 자율권을 재량껏 발휘하려는 내면적 의지를 나타냅니다.',
+                icon: Brain,
+                analysis: "교육의 주체는 교사라는 확고한 주인의식과 책임감을 바탕으로, 자율권을 재량껏 발휘하려는 내면적 의지를 나타냅니다.",
+                color: "#f43f5e", // Rose
+                subCategories: [
+                {
+                    id: 'subjectivity',
+                    title: '주체의식',
+                    detail: "교육의 주체는 교사라는 의식과 주도적으로 그 역할을 감당하겠다는 의지가 있는가",
+                    questions: [
+                    "나는 학교 교육활동에 있어 교사가 주체라고 생각한다.",
+                    "나는 학교공동체의 변화와 발전을 위해 주체적이고 적극적으로 참여해야 한다고 생각한다."
+                    ]
+                },
+                {
+                    id: 'responsibility',
+                    title: '책임의식',
+                    detail: "교육을 책임지겠다는 의식과 맡은 학생을 책임지겠다는 의지가 있는가",
+                    questions: [
+                    "나는 교육활동에 대해 책임져야 한다고 생각한다.",
+                    "나는 학교를 더 나은 공동체로 만들기 위한 책임이 있다고 생각한다.",
+                    "나는 국가 교육 담당자로서의 책임이 있다고 생각한다."
+                    ]
+                },
+                {
+                    id: 'autonomy',
+                    title: '자율의식',
+                    detail: "전문적 과업수행을 위해 부여된 자율권을 재량껏 발휘하는가",
+                    questions: [
+                    "나는 교육과정 운영의 자율성이 있다고 생각한다.",
+                    "나는 주변 상황과 맥락을 고려하여 재량껏 학생을 지도하는 사람이라고 생각한다.",
+                    "나는 자발적으로 더 효과적인 교육방법을 탐색해야 한다고 생각한다.",
+                    "나는 교육활동 운영 과정 중에 타인의 의사를 존중하고 수용하면서, 스스로 판단해야 한다고 생각한다."
+                    ]
+                }
+                ]
+            },
+            {
+                id: 'competency',
+                title: '2. 교사리더십 역량',
+                description: '교육활동 대상(학생, 동료, 학부모)을 깊이 이해하고 원활하게 소통하며, 지속적인 성찰과 철학적 사고를 통해 타인의 성장을 촉진하는 능력입니다.',
+                icon: Users,
+                analysis: "교육활동 대상(학생, 동료, 학부모)을 깊이 이해하고 원활하게 소통하며, 지속적인 성찰과 철학적 사고를 통해 타인의 성장을 촉진하는 능력입니다.",
+                color: "#f59e0b", // Amber
+                subCategories: [
+                {
+                    id: 'understanding',
+                    title: '이해역량',
+                    detail: "교육활동을 함께하는 모든 대상에 대해 이해할 수 있는 역량을 갖추고 있는가",
+                    questions: [
+                    "나는 학생이 처한 상황, 가정배경 등 외적상태를 이해하고 있다.",
+                    "나는 우리 반 학생들 사이의 관계가 어떤지 알고 있다.",
+                    "나는 동료교사의 욕구와 동기에 대해 이해하고 있다.",
+                    "나는 학부모의 생각과 필요를 파악하고 있다.",
+                    "나는 우리 학교가 가진 독특한 상황과 맥락을 이해하고 있다."
+                    ]
+                },
+                {
+                    id: 'communication',
+                    title: '소통역량',
+                    detail: "자신의 의견을 잘 전달하고, 상대방의 의견을 잘 파악하여 원활하게 상호작용하는가",
+                    questions: [
+                    "나는 수업지도 과정에서 학생들과 잘 소통한다.",
+                    "나는 동료교사들과 교수활동과 관련된 피드백을 서로 주고 받는다.",
+                    "나는 동료교사들과 수업지도나 학생지도에서 고충이나 문제가 생기면 자주 이야기한다.",
+                    "나는 동료교사들과 함께 교육문제의 원인 및 해결책에 대해 자주 논의한다.",
+                    "나는 교육 현안의 방향과 실천 목표에 대해 동료교사들과 함께 이야기한다."
+                    ]
+                },
+                {
+                    id: 'facilitation',
+                    title: '촉진역량',
+                    detail: "과업 수행 과정에서 상대방에게 동기를 부여하고 격려하며 자극해주는가",
+                    questions: [
+                    "나는 학생들의 학습욕구를 촉진시킬 수 있다.",
+                    "나는 동료교사의 필요와 욕구를 파악하여 동료교사가 교육활동을 적극적으로 할 수 있게 도와줄 수 있다.",
+                    "나는 학교사업 및 프로젝트 실행 시 동료교사가 적극적으로 참여하고 서로 협업할 수 있게 촉진할 수 있다.",
+                    "나는 교내외의 활동에 교직원 참여를 장려하고 격려하여 신뢰감을 형성할 수 있다.",
+                    "나는 동료교사의 능력개발을 위해 좋은 영향력을 미친다.",
+                    "나는 적극적으로 다른 사람들에게 동기부여 한다.",
+                    "나는 학부모들이 학교활동에 적극적으로 참여하도록 촉진할 수 있다."
+                    ]
+                },
+                {
+                    id: 'reflection',
+                    title: '성찰역량',
+                    detail: "자기 자신의 생각과 행동을 돌이켜 살피고 고찰해보는 역량을 갖추고 있는가",
+                    questions: [
+                    "나는 더 나은 수업을 위해 수업에서 발생한 문제를 계속해서 성찰한다.",
+                    "나는 학생들이 겪는 어려움을 해결하기 위해 지속적으로 성찰하면서 지도한다.",
+                    "나는 바람직한 교사의 삶에 대해 지속적으로 성찰하면서 교육활동을 수행한다.",
+                    "나는 내가 틀렸거나 잘 모를 때 인정하고, 나를 발전시키기 위해 성찰하면서 방법을 찾아 나간다.",
+                    "나는 학생과의 관계에서 겪는 문제나 갈등상황 해결을 위해 지속적으로 성찰하는 과정을 거친다."
+                    ]
+                },
+                {
+                    id: 'philosophy',
+                    title: '철학역량',
+                    detail: "교육에 대해 분명한 가치, 지향, 방향을 가지고 있는가",
+                    questions: [
+                    "나는 교사로서 교육의 목적을 탐구하며 교육활동을 수행한다.",
+                    "나는 교사로서 소신과 사명감을 가지고 있다.",
+                    "나는 학생들에게 긍정적인 영향을 줄 수 있는 교육철학을 가지고 있다.",
+                    "나는 학생을 대할 때 나의 가치와 철학에 따라 행동한다.",
+                    "나는 교사로서의 삶의 의미를 추구하며 적극적으로 살아간다.",
+                    "나는 교사로서 나 자신에 대한 자아상을 가지고 있다."
+                    ]
+                }
+                ]
+            },
+            {
+                id: 'attributes',
+                title: '3. 교사리더십 발휘 속성',
+                description: '교육 목표를 명확히 인지하고 능동적으로 과업을 주도하며, 교육 공동체 구성원들과 협력하여 전문적으로 과업을 수행해 나가는 실천적 행동입니다.',
+                icon: Target,
+                analysis: "교육 목표를 명확히 인지하고 능동적으로 과업을 주도하며, 교육 공동체 구성원들과 협력하여 전문적으로 과업을 수행해 나가는 실천적 행동입니다.",
+                color: "#f97316", // Orange
+                subCategories: [
+                {
+                    id: 'goal_orientation',
+                    title: '목표지향성',
+                    detail: "학교 및 학급의 목표가 무엇인지 잘 인지하고 교육활동을 수행해 나가는가",
+                    questions: [
+                    "나는 교육활동의 명확한 비전과 목표를 세운다.",
+                    "나는 목표가 뚜렷하지 않으면 교육활동을 수행하기 어렵다.",
+                    "나는 교육목표 달성에 필요한 요소를 알고 있다.",
+                    "나는 교육목표를 달성하지 못한다면 원인을 분석해 개선하려고 노력한다.",
+                    "나는 힘들 때마다 목표를 떠올리며 이겨낸다.",
+                    "나는 교육활동을 위해 목표가 반드시 필요하다고 생각한다."
+                    ]
+                },
+                {
+                    id: 'task_initiative',
+                    title: '과업주도성',
+                    detail: "능동적, 적극적으로 과업을 주도하여 수행해 나가는가",
+                    questions: [
+                    "나는 학교교육을 위해 주어진 역할을 주도적으로 담당한다.",
+                    "나는 내가 맡은 업무를 솔선수범한다."
+                    ]
+                },
+                {
+                    id: 'community',
+                    title: '공동체성',
+                    detail: "학생, 동료교원, 학부모 등과 합력하여 여러 주체와 함께 과업을 수행해 나가는가",
+                    questions: [
+                    "나는 교육 문제를 동료교사와 함께 해결한다.",
+                    "나는 문제가 생겼을 때 동료교사에게 도움을 구한다.",
+                    "나는 어려움을 겪는 학생, 학부모, 동료를 기꺼이 돕는다.",
+                    "나는 학교공동체에 적응하기 힘들어하는 동료가 잘 적응할 수 있도록 돕는다.",
+                    "나는 기본적으로 교육주체들과 협력하여 교육활동을 수행하고자 한다.",
+                    "나는 학생, 학부모, 동료와 함께 활동할 때 기쁨과 보람을 느낀다."
+                    ]
+                },
+                {
+                    id: 'professionalism',
+                    title: '전문성',
+                    detail: "전문적인 판단과 방법으로 과업을 수행하는가",
+                    questions: [
+                    "나는 수업에 관해 전문적인 지식과 실행 방법을 갖추고 있다.",
+                    "나는 학생 특성에 맞는 생활지도 방법을 알고 지도한다.",
+                    "나는 학생이 상담을 요청했을 때, 학생의 특성에 맞게 상담해줄 수 있다.",
+                    "나는 학급을 운영할 때, 나만의 노하우로 운영할 수 있다."
+                    ]
+                }
+                ]
+            }
+        ];
+
+        const PAGE_CONFIG = [[0, 1], [2]];
+        const ALL_QUESTIONS = SURVEY_DATA.flatMap(category => 
+            category.subCategories.flatMap(sub => 
+                sub.questions.map((q, idx) => ({
+                    qText: q,
+                    categoryId: category.id,
+                    subId: sub.id,
+                    key: `${category.id}-${sub.id}-${idx}`
+                }))
+            )
+        );
+
+        // --- 컴포넌트 분리 (App 밖으로 이동하여 깜박임 해결) ---
+
+        const OptionButton = ({ qKey, value, selectedValue, onAnswer }) => (
+            <button
+            key={value}
+            onClick={() => onAnswer(qKey, value)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 shadow-sm
+                ${selectedValue === value 
+                ? 'bg-orange-500 text-white ring-2 ring-offset-2 ring-orange-300 scale-110 shadow-orange-200' 
+                : 'bg-[#f5f5f4] text-stone-400 hover:bg-orange-100 hover:text-orange-600'}`}
+            >
+            {value}
+            </button>
+        );
+
+        const IntroPage = ({ onStart }) => (
+            <div className="relative flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 animate-fade-in py-10">
+                <div className="bg-orange-100 p-8 rounded-full shadow-inner mb-4">
+                    <Sun className="w-20 h-20 text-orange-500 animate-pulse-slow" />
+                </div>
+                <div className="space-y-4">
+                    <h1 className="text-4xl font-extrabold text-stone-800 tracking-tight">교사 리더십 진단</h1>
+                    <p className="text-stone-600 max-w-lg mx-auto leading-relaxed text-lg">
+                    선생님의 따뜻한 영향력이 교실과 학교를 변화시킵니다.<br/>
+                    잠시 시간을 내어 선생님의 리더십 여정을 돌아보세요.
+                    </p>
+                </div>
+                <div className="flex flex-col space-y-3 text-stone-500 text-sm">
+                    <span className="bg-orange-50 px-4 py-1.5 rounded-full border border-orange-100 inline-block mx-auto font-medium text-orange-700">
+                    총 55문항 • 약 5분 소요
+                    </span>
+                    <div className="text-xs text-stone-400 flex items-center justify-center space-x-1">
+                        <BookOpen className="w-3 h-3" />
+                        <span>문항 출처: 2023,교사리더십 진단도구 개발 및 타당화 연구 논문</span>
+                    </div>
+                </div>
+                <button 
+                    onClick={onStart}
+                    className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-orange-200 hover:bg-orange-600 hover:shadow-orange-300 transition-all transform hover:-translate-y-1 flex items-center space-x-2"
+                >
+                    <span>시작하기</span>
+                    <ChevronRight className="w-5 h-5" />
+                </button>
+                <div className="absolute bottom-0 right-0 p-2 text-[11px] text-stone-300 font-light">
+                    작성자: 솔터초 강보람
+                </div>
             </div>
-          </div>
-        )}
+        );
 
-        {/* Content */}
-        <div className="bg-transparent min-h-[500px]">
-          {currentPage === 0 && <IntroPage />}
-          
-          {currentPage === 1 && <SurveyPage pageIndex={1} />}
-          {currentPage === 2 && <SurveyPage pageIndex={2} />}
-          
-          {currentPage === 3 && <ResultPage />}
-        </div>
+        const SurveyPage = ({ pageIndex, answers, onAnswer, setActiveModal }) => {
+            const categoryIndices = PAGE_CONFIG[pageIndex - 1];
+            return (
+            <div className="space-y-10 animate-fade-in pb-24">
+                {categoryIndices.map(catIdx => {
+                const data = SURVEY_DATA[catIdx];
+                return (
+                    <div key={data.id} className="space-y-6">
+                    <div className="bg-[#fffbf7] p-8 rounded-3xl shadow-sm border border-orange-100/50 flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
+                        <div className="p-4 bg-orange-100 rounded-2xl">
+                            <data.icon className="w-8 h-8 text-orange-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-stone-800">{data.title}</h2>
+                            <p className="text-stone-500 mt-1">{data.description}</p>
+                        </div>
+                    </div>
+                    {data.subCategories.map((sub, subIdx) => (
+                        <div key={sub.id} className="bg-white rounded-3xl shadow-sm border border-stone-100 overflow-hidden">
+                        <div className="divide-y divide-stone-100">
+                            {sub.questions.map((q, qIdx) => {
+                            const qKey = `${data.id}-${sub.id}-${qIdx}`;
+                            return (
+                                <div key={qKey} className="p-6 md:p-8 hover:bg-orange-50/50 transition-colors duration-300">
+                                <p className="text-stone-700 font-medium mb-6 leading-relaxed text-lg break-keep">{q}</p>
+                                <div className="flex flex-col sm:flex-row justify-end items-center space-y-3 sm:space-y-0 sm:space-x-6 bg-stone-50/50 sm:bg-transparent p-4 sm:p-0 rounded-xl">
+                                    <span className="text-xs font-semibold text-stone-400">전혀 아니다</span>
+                                    <div className="flex space-x-3 sm:space-x-4">
+                                        {[1, 2, 3, 4, 5].map(val => (
+                                            <OptionButton 
+                                                key={val} 
+                                                qKey={qKey} 
+                                                value={val} 
+                                                selectedValue={answers[qKey]} 
+                                                onAnswer={onAnswer} 
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className="text-xs font-semibold text-stone-400">매우 그렇다</span>
+                                </div>
+                                </div>
+                            );
+                            })}
+                        </div>
+                        </div>
+                    ))}
+                    </div>
+                );
+                })}
+            </div>
+            );
+        };
 
-        {/* Navigation Footer */}
-        {currentPage > 0 && currentPage < 3 && (
-          <div className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-stone-200 p-6 shadow-[0_-5px_30px_rgba(0,0,0,0.03)] z-30">
-             <div className="max-w-4xl mx-auto flex justify-between items-center">
+        const ResultPage = ({ results, onReset, activeModal, setActiveModal }) => {
+            if (!results) return null;
+            const radarData = [
+                { subject: '리더십 의식', A: results.main.consciousness, fullMark: 5 },
+                { subject: '리더십 역량', A: results.main.competency, fullMark: 5 },
+                { subject: '발휘 속성', A: results.main.attributes, fullMark: 5 },
+            ];
+            const allSubScores = Object.values(results.subs).flat();
+            const maxScore = Math.max(...allSubScores.map(o => o.score));
+            const bestSub = allSubScores.reduce((prev, current) => (prev.score > current.score) ? prev : current);
+
+            return (
+            <div className="space-y-10 animate-fade-in pb-12">
+                <div className="text-center space-y-3 mb-10">
+                    <div className="inline-block p-3 bg-orange-100 rounded-full mb-2">
+                        <Heart className="w-8 h-8 text-orange-500 fill-orange-500" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-stone-800">진단 결과 보고서</h2>
+                    <p className="text-stone-500">선생님의 리더십이 꽃피우는 지점입니다.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                    { label: '리더십 의식', val: results.main.consciousness, icon: Brain, color: 'text-rose-500', bg: 'bg-rose-50' },
+                    { label: '리더십 역량', val: results.main.competency, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { label: '발휘 속성', val: results.main.attributes, icon: Target, color: 'text-orange-600', bg: 'bg-orange-50' },
+                ].map((item, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex items-center justify-between hover:shadow-md transition-shadow">
+                    <div>
+                        <p className="text-sm font-bold text-stone-400 mb-1">{item.label}</p>
+                        <p className="text-4xl font-extrabold text-stone-800">{item.val}</p>
+                    </div>
+                    <div className={`p-4 rounded-2xl ${item.bg}`}>
+                        <item.icon className={`w-8 h-8 ${item.color}`} />
+                    </div>
+                    </div>
+                ))}
+                </div>
+
+                <div className="space-y-8">
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100 flex flex-col items-center">
+                    <h3 className="text-lg font-bold text-stone-800 mb-6 flex items-center">
+                    <BarChart2 className="w-5 h-5 mr-2 text-orange-500" />
+                    종합 리더십 균형
+                    </h3>
+                    <div className="h-80 w-full max-w-lg">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                        <PolarGrid stroke="#e7e5e4" />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#78716c', fontSize: 14, fontWeight: '600' }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 5]} stroke="#d6d3d1" />
+                        <Radar name="My Score" dataKey="A" stroke="#f97316" fill="#fb923c" fillOpacity={0.5} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                        </RadarChart>
+                    </ResponsiveContainer>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {SURVEY_DATA.map((data) => {
+                    const chartData = results.subs[data.id];
+                    return (
+                        <div key={data.id} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col">
+                        <h3 className="text-lg font-bold text-stone-800 mb-2 flex items-center">
+                            <data.icon className={`w-5 h-5 mr-2`} style={{ color: data.color }} />
+                            {data.title.split('. ')[1]} 상세 분석
+                        </h3>
+                        <p className="text-sm text-stone-500 mb-6 min-h-[40px]">{data.description}</p>
+                        <div className="h-60 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e7e5e4" />
+                                <XAxis type="number" domain={[0, 5]} hide />
+                                <YAxis dataKey="name" type="category" tick={{ fill: '#57534e', fontSize: 13, fontWeight: '600' }} width={70} />
+                                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                <Bar dataKey="score" radius={[0, 8, 8, 0]} barSize={24} fill={data.color} />
+                            </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                        </div>
+                    );
+                    })}
+                </div>
+                </div>
+
+                <div className="bg-[#fff7ed] border border-orange-100 p-8 rounded-3xl shadow-sm mt-8">
+                <h3 className="text-xl font-bold text-stone-800 mb-4 flex items-center">
+                    <Sun className="w-6 h-6 text-orange-500 mr-2" />
+                    성장을 위한 제언
+                </h3>
+                <p className="leading-relaxed text-stone-700 opacity-90">
+                    선생님은 <strong>
+                    {results.main.consciousness >= 4 ? '단단한 교육철학을 바탕으로, ' : ''}
+                    {results.main.competency >= 4 ? '교육공동체와 따뜻하게 소통하며, ' : ''}
+                    {results.main.attributes >= 4 ? '목표를 향해 묵묵히 나아가는 ' : ''}
+                    </strong> 
+                    멋진 리더이십니다. 
+                    <br/><br/>
+                    특히 전체 하위 영역 중 
+                    <strong className="text-orange-600"> {maxScore}점</strong>으로 가장 돋보이는 
+                    <strong className="text-orange-600"> {bestSub.name}</strong>은 
+                    선생님이 힘들 때 지탱해주는 든든한 뿌리가 되어줄 것입니다. 
+                </p>
+                </div>
+
+                <div className="space-y-6 mt-8">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-xl font-bold text-stone-800 flex items-center">
+                    <Quote className="w-5 h-5 mr-2 text-orange-500 fill-orange-500" />
+                    영역별 상세 해석
+                    </h3>
+                    <span className="text-xs text-stone-400 flex items-center bg-white px-3 py-1 rounded-full border border-stone-100 animate-pulse">
+                    <MousePointerClick className="w-3 h-3 mr-1" />
+                    하위 요소를 클릭하여 상세 내용을 확인하세요
+                    </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {SURVEY_DATA.map((data, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 flex flex-col">
+                        <div className="flex items-center mb-4">
+                        <div className="p-2 bg-stone-50 rounded-lg mr-3">
+                            <data.icon className="w-6 h-6 text-stone-600" />
+                        </div>
+                        <h4 className="font-bold text-lg text-stone-800">{data.title.substring(3)}</h4>
+                        </div>
+                        <p className="text-stone-600 text-sm leading-relaxed flex-grow">
+                        {data.analysis}
+                        </p>
+                        <div className="mt-4 pt-4 border-t border-stone-100">
+                        <span className="text-xs font-semibold text-stone-400 mb-2 block">하위 요소 (클릭하여 확인)</span>
+                        <div className="flex flex-wrap gap-2">
+                            {data.subCategories.map(sub => (
+                            <button 
+                                key={sub.id} 
+                                onClick={() => setActiveModal({ title: sub.title, content: sub.detail })}
+                                className="px-3 py-1.5 bg-stone-50 text-stone-600 text-xs rounded-lg hover:bg-orange-100 hover:text-orange-700 hover:font-bold transition-all border border-stone-100 hover:border-orange-200 active:bg-orange-200"
+                            >
+                                {sub.title}
+                            </button>
+                            ))}
+                        </div>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+                </div>
+
                 <button 
-                  onClick={() => { setCurrentPage(p => p - 1); window.scrollTo(0,0); }}
-                  className="px-8 py-3 rounded-2xl text-stone-500 font-bold hover:bg-stone-100 transition-colors"
+                onClick={onReset}
+                className="w-full py-5 bg-stone-200 text-stone-600 font-bold rounded-2xl hover:bg-stone-300 transition-colors flex items-center justify-center space-x-2 mt-8"
                 >
-                  이전
+                <RotateCcw className="w-5 h-5" />
+                <span>처음부터 다시 하기</span>
                 </button>
-                <button 
-                  onClick={handleNext}
-                  className={`px-10 py-3 rounded-2xl text-white font-bold shadow-lg flex items-center space-x-2 transition-all transform active:scale-95
-                   ${isSectionComplete(currentPage) 
-                      ? 'bg-orange-500 hover:bg-orange-600 hover:shadow-orange-300' 
-                      : 'bg-stone-300 cursor-not-allowed shadow-none'}`}
-                  disabled={!isSectionComplete(currentPage)}
-                >
-                  <span>{currentPage === 2 ? '결과 보기' : '다음 단계'}</span>
-                  {currentPage === 2 ? <CheckCircle2 className="w-5 h-5"/> : <ChevronRight className="w-5 h-5" />}
-                </button>
-             </div>
-          </div>
-        )}
 
-      </div>
-    </div>
-  );
-};
+                {activeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => setActiveModal(null)}>
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl transform transition-all scale-100 border border-white/50" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-start mb-6">
+                        <h3 className="text-2xl font-bold text-stone-800 flex items-center">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full mr-3 animate-pulse"></div>
+                        {activeModal.title}
+                        </h3>
+                        <button onClick={() => setActiveModal(null)} className="p-2 bg-stone-100 rounded-full text-stone-400 hover:text-stone-600 hover:bg-stone-200 transition-colors">
+                        <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100">
+                        <h4 className="text-sm font-bold text-orange-600 mb-2">진단 내용</h4>
+                        <p className="text-stone-700 leading-relaxed text-lg font-medium break-keep">
+                        {activeModal.content}
+                        </p>
+                    </div>
+                    <div className="mt-8 flex justify-end">
+                        <button 
+                        onClick={() => setActiveModal(null)}
+                        className="px-6 py-3 bg-stone-800 text-white rounded-xl hover:bg-stone-900 font-bold text-sm shadow-lg shadow-stone-200 transition-all hover:-translate-y-0.5"
+                        >
+                        확인
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                )}
+            </div>
+            );
+        };
 
-export default App;
+        const App = () => {
+            const [answers, setAnswers] = useState({});
+            const [isSubmitted, setIsSubmitted] = useState(false);
+            const [currentPage, setCurrentPage] = useState(0); 
+            const [activeModal, setActiveModal] = useState(null);
+
+            const answeredCount = Object.keys(answers).length;
+            const totalCount = ALL_QUESTIONS.length;
+            const progress = Math.round((answeredCount / totalCount) * 100);
+
+            const handleAnswer = (key, value) => {
+                setAnswers(prev => ({ ...prev, [key]: value }));
+            };
+
+            const calculateResults = useMemo(() => {
+                if (!isSubmitted) return null;
+
+                const scores = {};
+                SURVEY_DATA.forEach(cat => {
+                    scores[cat.id] = { sum: 0, count: 0, sub: {} };
+                    cat.subCategories.forEach(sub => {
+                        scores[cat.id].sub[sub.id] = { sum: 0, count: 0 };
+                    });
+                });
+
+                ALL_QUESTIONS.forEach(q => {
+                    const score = answers[q.key] || 0;
+                    if (score === 0) return;
+
+                    scores[q.categoryId].sum += score;
+                    scores[q.categoryId].count += 1;
+
+                    scores[q.categoryId].sub[q.subId].sum += score;
+                    scores[q.categoryId].sub[q.subId].count += 1;
+                });
+
+                const result = { main: {}, subs: {} };
+                SURVEY_DATA.forEach(cat => {
+                    result.main[cat.id] = scores[cat.id].count 
+                        ? (scores[cat.id].sum / scores[cat.id].count).toFixed(2) 
+                        : 0;
+                    result.subs[cat.id] = [];
+                    cat.subCategories.forEach(sub => {
+                        const subScore = scores[cat.id].sub[sub.id].count 
+                        ? (scores[cat.id].sub[sub.id].sum / scores[cat.id].sub[sub.id].count).toFixed(2) 
+                        : 0;
+                        result.subs[cat.id].push({ name: sub.title, score: subScore, id: sub.id });
+                    });
+                });
+                return result;
+            }, [answers, isSubmitted]);
+
+            const isSectionComplete = (pageIdx) => {
+                if (pageIdx < 1 || pageIdx > 2) return true;
+                const targetCategoryIndices = PAGE_CONFIG[pageIdx - 1];
+                const targetKeys = targetCategoryIndices.flatMap(catIdx => {
+                const catData = SURVEY_DATA[catIdx];
+                return catData.subCategories.flatMap(sub => 
+                    sub.questions.map((_, qIdx) => `${catData.id}-${sub.id}-${qIdx}`)
+                );
+                });
+                return targetKeys.every(key => answers[key] > 0);
+            };
+
+            const handleNext = () => {
+                if (currentPage < 2) {
+                    if (!isSectionComplete(currentPage)) {
+                        alert("모든 문항에 응답해주세요.");
+                        return;
+                    }
+                    setCurrentPage(p => p + 1);
+                    window.scrollTo(0, 0);
+                } else {
+                    if (!isSectionComplete(currentPage)) {
+                        alert("모든 문항에 응답해주세요.");
+                        return;
+                    }
+                    setIsSubmitted(true);
+                    setCurrentPage(3);
+                    window.scrollTo(0, 0);
+                }
+            };
+            
+            const handleReset = () => {
+                setIsSubmitted(false);
+                setAnswers({});
+                setCurrentPage(0);
+                window.scrollTo(0,0);
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                {currentPage > 0 && currentPage < 3 && (
+                    <div className="mb-10 sticky top-4 z-20">
+                    <div className="bg-white/80 backdrop-blur-lg px-8 py-5 rounded-full shadow-sm border border-stone-200/50 flex items-center justify-between">
+                        <span className="font-bold text-orange-600 tracking-wide">Step {currentPage} / 2</span>
+                        <div className="w-48 md:w-64 h-3 bg-stone-100 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-gradient-to-r from-orange-400 to-rose-400 transition-all duration-700 ease-out rounded-full shadow-[0_0_10px_rgba(251,146,60,0.5)]"
+                            style={{ width: `${progress}%` }}
+                        ></div>
+                        </div>
+                        <span className="text-sm text-stone-500 font-medium">{progress}% 완료</span>
+                    </div>
+                    </div>
+                )}
+                <div className="bg-transparent min-h-[500px]">
+                    {currentPage === 0 && <IntroPage onStart={() => setCurrentPage(1)} />}
+                    {currentPage === 1 && <SurveyPage pageIndex={1} answers={answers} onAnswer={handleAnswer} setActiveModal={setActiveModal} />}
+                    {currentPage === 2 && <SurveyPage pageIndex={2} answers={answers} onAnswer={handleAnswer} setActiveModal={setActiveModal} />}
+                    {currentPage === 3 && <ResultPage results={calculateResults} onReset={handleReset} activeModal={activeModal} setActiveModal={setActiveModal} />}
+                </div>
+                {currentPage > 0 && currentPage < 3 && (
+                    <div className="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-stone-200 p-6 shadow-[0_-5px_30px_rgba(0,0,0,0.03)] z-30">
+                        <div className="max-w-4xl mx-auto flex justify-between items-center">
+                        <button 
+                            onClick={() => { setCurrentPage(p => p - 1); window.scrollTo(0,0); }}
+                            className="px-8 py-3 rounded-2xl text-stone-500 font-bold hover:bg-stone-100 transition-colors"
+                        >
+                            이전
+                        </button>
+                        <button 
+                            onClick={handleNext}
+                            className={`px-10 py-3 rounded-2xl text-white font-bold shadow-lg flex items-center space-x-2 transition-all transform active:scale-95
+                            ${isSectionComplete(currentPage) 
+                                ? 'bg-orange-500 hover:bg-orange-600 hover:shadow-orange-300' 
+                                : 'bg-stone-300 cursor-not-allowed shadow-none'}`}
+                            disabled={!isSectionComplete(currentPage)}
+                        >
+                            <span>{currentPage === 2 ? '결과 보기' : '다음 단계'}</span>
+                            {currentPage === 2 ? <CheckCircle2 className="w-5 h-5"/> : <ChevronRight className="w-5 h-5" />}
+                        </button>
+                        </div>
+                    </div>
+                )}
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
